@@ -26,6 +26,7 @@ from types import SimpleNamespace
 
 import shutil
 import subprocess
+import time
 
 SCHEMA = ('id','question','choices','response_format','type_id','operator','audio_input','duration','text_output')
 
@@ -220,6 +221,7 @@ def parse():
     p.add_argument('--merge-timeout',type=float,default=60,help='minimum ffmpeg merge timeout, seconds')
     p.add_argument('--max-merge-timeout',type=float,default=900,help='maximum dynamic merge timeout, seconds')
     p.add_argument('--deep-audio-check',action='store_true',help='ffmpeg-decode every distinct original WAV once (including --check-only)')
+    p.add_argument('--progress-every',type=int,default=100,help='print progress to stderr every N QA rows (0 disables)')
     return p.parse_args()
 
 
@@ -245,6 +247,7 @@ def main():
     if output.exists() and not a.force and not a.check_only:
         raise FileExistsError(f'output already exists: {output}; pass --force to replace')
     if a.expect_rows<0:raise ValueError('negative expected count')
+    if a.progress_every<0:raise ValueError('negative --progress-every')
     if a.probe_timeout<=0 or a.merge_timeout<=0 or a.max_merge_timeout<a.merge_timeout:
         raise ValueError('invalid timeout settings')
     if a.sample_rate<=0 or a.beep_hz<=0 or a.beep_seconds<=0 or not (0<=a.beep_volume<=1):
@@ -252,11 +255,20 @@ def main():
     stats={'rows':0,'single_audio_qa':0,'pairwise_qa':0,'mcq':0,'open_ended':0,
            'distinct_pair_wavs':0,'unique_original_wavs':0,'mode':'check_only' if a.check_only else 'write'}
     unique=set(); pairs=set(); decoded=set(); temp=None; out_stream=None
+    started=time.monotonic()
+    def progress(current, current_audio='', force=False):
+        if not force and (a.progress_every==0 or current % a.progress_every):
+            return
+        elapsed=max(time.monotonic()-started,0.001)
+        total=f'/{a.expect_rows:,}' if a.expect_rows else ''
+        pct=f' ({100*current/a.expect_rows:.1f}%)' if a.expect_rows else ''
+        print(f'[PROGRESS] {current:,}{total} QA{pct} | {current/elapsed:.1f} QA/s | WAV checked={len(unique):,} | WAV decoded={len(decoded):,} | pairs={len(pairs):,} | current={current_audio}', file=sys.stderr, flush=True)
     try:
         if not a.check_only:
             output.parent.mkdir(parents=True,exist_ok=True)
             out_stream=tempfile.NamedTemporaryFile('w',encoding='utf-8',newline='\n',dir=output.parent,suffix='.tmp',delete=False)
             temp=Path(out_stream.name)
+        print(f'[START] mode={stats["mode"]}, deep_audio_check={a.deep_audio_check}, expected_rows={a.expect_rows or "unknown"}, probe_timeout={a.probe_timeout}s, progress_every={a.progress_every}', file=sys.stderr, flush=True)
         with source.open(encoding='utf-8-sig') as fh:
             for n,line in enumerate(fh,1):
                 if not line.strip():raise ValueError(f'blank line {n}')
@@ -268,6 +280,8 @@ def main():
                     if not isinstance(refs,list) or len(refs) not in (1,2):
                         raise ValueError('expected audio to be a list of 1 or 2 references')
                     paths=[resolve(ref,{},root) for ref in refs]
+                    if n == 1:
+                        print(f'[AUDIO] first={paths[0]}',file=sys.stderr,flush=True)
                     unique.update(map(str,paths))
                     durations = [cached_duration(str(p), a.probe_timeout) for p in paths]
                     if a.deep_audio_check:
@@ -300,10 +314,13 @@ def main():
                     stats[final['response_format']]+=1
                     if out_stream:out_stream.write(json.dumps(final,ensure_ascii=False)+'\n')
                     stats['rows']+=1
+                    progress(stats['rows'], paths[0].name)
                 except Exception as exc:
                     raise ValueError(f'{source}:{n}: {exc}') from exc
         if a.expect_rows and stats['rows']!=a.expect_rows:
             raise ValueError(f'expected {a.expect_rows} rows but found {stats["rows"]}')
+        if not a.progress_every or stats['rows'] % a.progress_every:
+            progress(stats['rows'], 'completed', force=True)
         stats['unique_original_wavs']=len(unique)
         stats['distinct_pair_wavs']=len(pairs)
         if out_stream:out_stream.close();out_stream=None
