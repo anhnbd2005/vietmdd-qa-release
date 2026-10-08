@@ -211,6 +211,7 @@ def parse():
         p.add_argument('--'+a, type=Path, required=True)
     p.add_argument('--expect-rows',type=int,default=0)
     p.add_argument('--check-only',action='store_true',help='Validate all audio references and QA fields; do not create WAV/JSONL')
+    p.add_argument('--skip-invalid-audio',action='store_true',help='Drop every QA referencing invalid original audio; record dropped rows in .skipped.jsonl')
     p.add_argument('--force',action='store_true',help='Replace output JSONL (not source WAV files)')
     p.add_argument('--sample-rate',type=int,default=16000)
     p.add_argument('--beep-hz',type=int,default=1000)
@@ -252,9 +253,9 @@ def main():
         raise ValueError('invalid timeout settings')
     if a.sample_rate<=0 or a.beep_hz<=0 or a.beep_seconds<=0 or not (0<=a.beep_volume<=1):
         raise ValueError('invalid beep settings')
-    stats={'rows':0,'single_audio_qa':0,'pairwise_qa':0,'mcq':0,'open_ended':0,
+    stats={'rows':0,'input_rows':0,'skipped_rows':0,'invalid_original_wavs':0,'single_audio_qa':0,'pairwise_qa':0,'mcq':0,'open_ended':0,
            'distinct_pair_wavs':0,'unique_original_wavs':0,'mode':'check_only' if a.check_only else 'write'}
-    unique=set(); pairs=set(); decoded=set(); temp=None; out_stream=None
+    unique=set(); pairs=set(); decoded=set(); bad_audio={}; temp=None; out_stream=None; skipped_stream=None; skipped_tmp=None
     started=time.monotonic()
     def progress(current, current_audio='', force=False):
         if not force and (a.progress_every==0 or current % a.progress_every):
@@ -262,15 +263,19 @@ def main():
         elapsed=max(time.monotonic()-started,0.001)
         total=f'/{a.expect_rows:,}' if a.expect_rows else ''
         pct=f' ({100*current/a.expect_rows:.1f}%)' if a.expect_rows else ''
-        print(f'[PROGRESS] {current:,}{total} QA{pct} | {current/elapsed:.1f} QA/s | WAV checked={len(unique):,} | WAV decoded={len(decoded):,} | pairs={len(pairs):,} | current={current_audio}', file=sys.stderr, flush=True)
+        print(f'[PROGRESS] input={current:,}{total}{pct} | kept={stats["rows"]:,} skipped={stats["skipped_rows"]:,} | {current/elapsed:.1f} input/s | WAV checked={len(unique):,} invalid={len(bad_audio):,} decoded={len(decoded):,} pairs={len(pairs):,} | current={current_audio}', file=sys.stderr, flush=True)
     try:
         if not a.check_only:
             output.parent.mkdir(parents=True,exist_ok=True)
             out_stream=tempfile.NamedTemporaryFile('w',encoding='utf-8',newline='\n',dir=output.parent,suffix='.tmp',delete=False)
             temp=Path(out_stream.name)
+            if a.skip_invalid_audio:
+                skipped_stream=tempfile.NamedTemporaryFile('w',encoding='utf-8',newline='\n',dir=output.parent,suffix='.skipped.tmp',delete=False)
+                skipped_tmp=Path(skipped_stream.name)
         print(f'[START] mode={stats["mode"]}, deep_audio_check={a.deep_audio_check}, expected_rows={a.expect_rows or "unknown"}, probe_timeout={a.probe_timeout}s, progress_every={a.progress_every}', file=sys.stderr, flush=True)
         with source.open(encoding='utf-8-sig') as fh:
             for n,line in enumerate(fh,1):
+                stats['input_rows']+=1
                 if not line.strip():raise ValueError(f'blank line {n}')
                 try:
                     record=json.loads(line)
@@ -279,16 +284,46 @@ def main():
                     if isinstance(refs,str):refs=[refs]
                     if not isinstance(refs,list) or len(refs) not in (1,2):
                         raise ValueError('expected audio to be a list of 1 or 2 references')
-                    paths=[resolve(ref,{},root) for ref in refs]
-                    if n == 1:
+                    paths=[]
+                    invalid=[]
+                    for ref in refs:
+                        try:
+                            path=resolve(ref,{},root)
+                            paths.append(path)
+                            unique.add(str(path))
+                            if str(path) in bad_audio:
+                                invalid.append({'ref':ref,'error':bad_audio[str(path)]})
+                        except (OSError,ValueError) as exc:
+                            key=f'unresolved:{ref}'
+                            bad_audio[key]=str(exc)
+                            invalid.append({'ref':ref,'error':str(exc)})
+                    if n == 1 and paths:
                         print(f'[AUDIO] first={paths[0]}',file=sys.stderr,flush=True)
-                    unique.update(map(str,paths))
-                    durations = [cached_duration(str(p), a.probe_timeout) for p in paths]
-                    if a.deep_audio_check:
-                        for path, seconds in zip(paths, durations):
-                            if str(path) not in decoded:
-                                decoded_duration(path, max(a.merge_timeout, min(a.max_merge_timeout, 30 + 3 * seconds)))
-                                decoded.add(str(path))
+                    durations=[]
+                    if not invalid:
+                        for path in paths:
+                            try:
+                                if str(path) in bad_audio:
+                                    raise ValueError(bad_audio[str(path)])
+                                seconds=cached_duration(str(path),a.probe_timeout)
+                                if a.deep_audio_check and str(path) not in decoded:
+                                    decoded_duration(path,max(a.merge_timeout,min(a.max_merge_timeout,30+3*seconds)))
+                                    decoded.add(str(path))
+                                durations.append(seconds)
+                            except (OSError,ValueError) as exc:
+                                bad_audio[str(path)]=str(exc)
+                                invalid.append({'ref':path.name,'error':str(exc)})
+                    if invalid:
+                        if not a.skip_invalid_audio:
+                            raise ValueError(f'invalid original audio: {invalid}')
+                        stats['skipped_rows']+=1
+                        entry={'line':n,'id':record.get('id'),'audio':refs,'invalid_audio':invalid}
+                        if skipped_stream:
+                            skipped_stream.write(json.dumps(entry,ensure_ascii=False)+'\n')
+                        if stats['skipped_rows']<=5:
+                            print(f'[SKIP] line={n} audio={invalid}',file=sys.stderr,flush=True)
+                        progress(n, str(refs[0]))
+                        continue
                     if len(paths)==1:
                         dest=paths[0]
                         seconds=durations[0]
@@ -314,24 +349,31 @@ def main():
                     stats[final['response_format']]+=1
                     if out_stream:out_stream.write(json.dumps(final,ensure_ascii=False)+'\n')
                     stats['rows']+=1
-                    progress(stats['rows'], paths[0].name)
+                    progress(n, paths[0].name)
                 except Exception as exc:
                     raise ValueError(f'{source}:{n}: {exc}') from exc
-        if a.expect_rows and stats['rows']!=a.expect_rows:
-            raise ValueError(f'expected {a.expect_rows} rows but found {stats["rows"]}')
-        if not a.progress_every or stats['rows'] % a.progress_every:
-            progress(stats['rows'], 'completed', force=True)
+        if a.expect_rows and stats['input_rows']!=a.expect_rows:
+            raise ValueError(f'expected {a.expect_rows} input rows but found {stats["input_rows"]}')
+        if not a.progress_every or stats['input_rows'] % a.progress_every:
+            progress(stats['input_rows'], 'completed', force=True)
+        stats['invalid_original_wavs']=len(bad_audio)
         stats['unique_original_wavs']=len(unique)
         stats['distinct_pair_wavs']=len(pairs)
         if out_stream:out_stream.close();out_stream=None
+        if skipped_stream:skipped_stream.close();skipped_stream=None
         if temp:os.replace(temp,output);temp=None
+        if skipped_tmp:os.replace(skipped_tmp,output.with_suffix('.skipped.jsonl'));skipped_tmp=None
         if not a.check_only and a.report:
             a.report.parent.mkdir(parents=True,exist_ok=True)
             a.report.write_text(json.dumps(stats,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+        if a.skip_invalid_audio and not a.check_only:
+            print(f'[DONE] output={output} skipped_report={output.with_suffix(".skipped.jsonl")}',file=sys.stderr,flush=True)
         print(json.dumps(stats,ensure_ascii=False,indent=2))
     finally:
         if out_stream:out_stream.close()
+        if skipped_stream:skipped_stream.close()
         if temp:temp.unlink(missing_ok=True)
+        if skipped_tmp:skipped_tmp.unlink(missing_ok=True)
 
 
 if __name__=='__main__':
