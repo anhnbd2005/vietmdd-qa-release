@@ -16,6 +16,8 @@ import argparse
 import hashlib
 import json
 import os
+import math
+import wave
 from pathlib import Path
 import sys
 import tempfile
@@ -52,10 +54,54 @@ def resolve(ref,mapping,root):
         raise ValueError(f'Cannot resolve {ref!r} to existing audio: {p}; supply --mapping')
     return p
 
-def merge(a,b,out,args):
+def run_checked(cmd, timeout, label):
+    try:
+        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(f'{label}: exceeded {timeout}s timeout') from exc
+    if result.returncode:
+        raise ValueError(f'{label}: exit={result.returncode}: {result.stderr.strip()[-1200:]}')
+    return result
+
+
+def validate_wav(path, *, expected_rate=None):
+    """Fail closed on header-only, truncated, non-PCM, or zero-frame WAVs."""
+    try:
+        with wave.open(str(path), 'rb') as wav:
+            frames = wav.getnframes()
+            rate = wav.getframerate()
+            channels = wav.getnchannels()
+            width = wav.getsampwidth()
+            if frames <= 0 or rate <= 0 or channels <= 0 or width <= 0:
+                raise ValueError('no audio frames or invalid WAV format')
+            if expected_rate and rate != expected_rate:
+                raise ValueError(f'unexpected sample rate {rate}, expected {expected_rate}')
+            # For uncompressed PCM, verify that physical data bytes exist.
+            expected_bytes = frames * channels * width
+            actual_bytes = 0
+            while actual_bytes < expected_bytes:
+                chunk = wav.readframes(min(65536, (expected_bytes - actual_bytes + channels * width - 1) // (channels * width)))
+                if not chunk:
+                    break
+                actual_bytes += len(chunk)
+            if actual_bytes != expected_bytes:
+                raise ValueError(f'truncated PCM payload: {actual_bytes}/{expected_bytes} bytes')
+            return frames / rate
+    except (wave.Error, EOFError) as exc:
+        raise ValueError(f'invalid/unreadable WAV {path}: {exc}') from exc
+
+
+def merge(a,b,out,args,seconds_a,seconds_b):
+    expected_seconds = seconds_a + args.beep_seconds + seconds_b
     if out.is_file():
-        if out.stat().st_size==0:raise ValueError(f'Empty cached merge {out}')
-        return
+        try:
+            cached_seconds = validate_wav(out, expected_rate=args.sample_rate)
+            if abs(cached_seconds - expected_seconds) > max(0.1, expected_seconds * 0.002):
+                raise ValueError('cached duration mismatch')
+            return
+        except (OSError, ValueError):
+            # Never silently overwrite an existing corrupt cache entry.
+            raise ValueError(f'Invalid cached merge {out}; delete it explicitly before retrying')
     if shutil.which('ffmpeg') is None:
         raise RuntimeError('ffmpeg not found on PATH')
     out.parent.mkdir(parents=True,exist_ok=True)
@@ -71,8 +117,11 @@ def merge(a,b,out,args):
              f'sine=frequency={args.beep_hz}:duration={args.beep_seconds}:sample_rate={args.sample_rate}',
              '-filter_complex',filters,'-map','[out]','-ar',str(args.sample_rate),
              '-ac','1','-c:a','pcm_s16le',str(tmp)]
-        subprocess.run(cmd,check=True)
-        if tmp.stat().st_size<=44:raise RuntimeError('ffmpeg produced empty audio')
+        timeout = max(args.merge_timeout, min(args.max_merge_timeout, 30 + expected_seconds * 3))
+        run_checked(cmd, timeout, f'ffmpeg merge {a.name} + {b.name}')
+        produced_seconds = validate_wav(tmp, expected_rate=args.sample_rate)
+        if abs(produced_seconds - expected_seconds) > max(0.1, expected_seconds * 0.002):
+            raise ValueError(f'merged duration mismatch: {produced_seconds} vs {expected_seconds}')
         os.replace(tmp,out)
     finally:
         tmp.unlink(missing_ok=True)
@@ -84,12 +133,36 @@ def select(row, keys):
         raise ValueError('Conflicting source fields: '+str([k for k,_ in present]))
     return present[0][1]
 
-def duration_of(audio):
-    p=subprocess.run(['ffprobe','-v','error','-show_entries','format=duration',
-                     '-of','default=noprint_wrappers=1:nokey=1',audio],
-                     text=True,capture_output=True)
-    if p.returncode: raise ValueError(f'ffprobe failed for {audio}: {p.stderr.strip()}')
-    return float(p.stdout.strip())
+def duration_of(audio, probe_timeout=15):
+    if shutil.which('ffprobe') is None:
+        raise RuntimeError('ffprobe not found on PATH')
+    result = run_checked(
+        ['ffprobe', '-v', 'error', '-show_entries',
+         'stream=codec_type,sample_rate,channels,duration:format=duration',
+         '-select_streams', 'a:0', '-of', 'json', str(audio)],
+        probe_timeout, f'ffprobe {audio}')
+    try:
+        obj = json.loads(result.stdout)
+        streams = obj.get('streams') or []
+        if not streams or streams[0].get('codec_type') != 'audio':
+            raise ValueError('no audio stream')
+        duration = float((obj.get('format') or {}).get('duration') or streams[0]['duration'])
+        if not math.isfinite(duration) or duration <= 0:
+            raise ValueError('invalid or zero audio duration')
+        if int(streams[0].get('sample_rate', 0)) <= 0 or int(streams[0].get('channels', 0)) <= 0:
+            raise ValueError('invalid audio stream parameters')
+        return duration
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise ValueError(f'Invalid audio metadata {audio}: {exc}') from exc
+
+
+def decoded_duration(audio, timeout):
+    if shutil.which('ffmpeg') is None:
+        raise RuntimeError('ffmpeg not found on PATH')
+    run_checked(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
+                 '-i', str(audio), '-map', '0:a:0', '-f', 'null', '-'],
+                timeout, f'ffmpeg decode {audio}')
+
 
 def transform(row, infer_duration=False):
     if not isinstance(row,dict): raise ValueError('record must be an object')
@@ -143,12 +216,21 @@ def parse():
     p.add_argument('--beep-seconds',type=float,default=0.25)
     p.add_argument('--beep-volume',type=float,default=0.25)
     p.add_argument('--report',type=Path)
+    p.add_argument('--probe-timeout',type=float,default=15,help='ffprobe timeout per WAV, seconds')
+    p.add_argument('--merge-timeout',type=float,default=60,help='minimum ffmpeg merge timeout, seconds')
+    p.add_argument('--max-merge-timeout',type=float,default=900,help='maximum dynamic merge timeout, seconds')
+    p.add_argument('--deep-audio-check',action='store_true',help='ffmpeg-decode every distinct original WAV once (including --check-only)')
     return p.parse_args()
 
 
 @lru_cache(maxsize=200000)
-def cached_duration(path:str)->float:
-    return duration_of(path)
+def cached_duration(path:str, probe_timeout:float)->float:
+    # WAV integrity includes verifying actual PCM data, not just a plausible header.
+    pcm_seconds = validate_wav(Path(path))
+    probed_seconds = duration_of(path, probe_timeout)
+    if abs(pcm_seconds - probed_seconds) > max(0.1, pcm_seconds * 0.002):
+        raise ValueError(f'WAV duration mismatch (PCM/ffprobe): {path}')
+    return pcm_seconds
 
 
 def main():
@@ -163,11 +245,13 @@ def main():
     if output.exists() and not a.force and not a.check_only:
         raise FileExistsError(f'output already exists: {output}; pass --force to replace')
     if a.expect_rows<0:raise ValueError('negative expected count')
+    if a.probe_timeout<=0 or a.merge_timeout<=0 or a.max_merge_timeout<a.merge_timeout:
+        raise ValueError('invalid timeout settings')
     if a.sample_rate<=0 or a.beep_hz<=0 or a.beep_seconds<=0 or not (0<=a.beep_volume<=1):
         raise ValueError('invalid beep settings')
     stats={'rows':0,'single_audio_qa':0,'pairwise_qa':0,'mcq':0,'open_ended':0,
            'distinct_pair_wavs':0,'unique_original_wavs':0,'mode':'check_only' if a.check_only else 'write'}
-    unique=set(); pairs=set(); temp=None; out_stream=None
+    unique=set(); pairs=set(); decoded=set(); temp=None; out_stream=None
     try:
         if not a.check_only:
             output.parent.mkdir(parents=True,exist_ok=True)
@@ -185,21 +269,26 @@ def main():
                         raise ValueError('expected audio to be a list of 1 or 2 references')
                     paths=[resolve(ref,{},root) for ref in refs]
                     unique.update(map(str,paths))
+                    durations = [cached_duration(str(p), a.probe_timeout) for p in paths]
+                    if a.deep_audio_check:
+                        for path, seconds in zip(paths, durations):
+                            if str(path) not in decoded:
+                                decoded_duration(path, max(a.merge_timeout, min(a.max_merge_timeout, 30 + 3 * seconds)))
+                                decoded.add(str(path))
                     if len(paths)==1:
                         dest=paths[0]
-                        seconds=cached_duration(str(dest))
+                        seconds=durations[0]
                         stats['single_audio_qa']+=1
                     else:
-                        signature=json.dumps([str(paths[0]),str(paths[1]),a.sample_rate,a.beep_hz,a.beep_seconds,a.beep_volume],ensure_ascii=False)
+                        signature=json.dumps([[str(p),p.stat().st_size,p.stat().st_mtime_ns] for p in paths] + [a.sample_rate,a.beep_hz,a.beep_seconds,a.beep_volume],ensure_ascii=False)
                         key=hashlib.sha256(signature.encode('utf-8')).hexdigest()[:32]
                         dest=merged/(key+'.wav')
                         pairs.add(key)
                         if not a.check_only:
-                            merge(paths[0],paths[1],dest,SimpleNamespace(sample_rate=a.sample_rate,beep_hz=a.beep_hz,
-                                                                       beep_seconds=a.beep_seconds,beep_volume=a.beep_volume))
-                            seconds=cached_duration(str(dest))
+                            merge(paths[0],paths[1],dest,a,durations[0],durations[1])
+                            seconds=cached_duration(str(dest),a.probe_timeout)
                         else:
-                            seconds=cached_duration(str(paths[0]))+a.beep_seconds+cached_duration(str(paths[1]))
+                            seconds=durations[0]+a.beep_seconds+durations[1]
                         stats['pairwise_qa']+=1
                     adjusted=dict(record)
                     adjusted['audio']=str(dest)
@@ -208,8 +297,7 @@ def main():
                     adjusted.pop('audio_duration',None)
                     adjusted['duration']=round(seconds,6)
                     final=transform(adjusted,infer_duration=False)
-                    stats[final['response_format']]+=1 if final['response_format']=='mcq' else 0
-                    if final['response_format']=='open_ended':stats['open_ended']+=1
+                    stats[final['response_format']]+=1
                     if out_stream:out_stream.write(json.dumps(final,ensure_ascii=False)+'\n')
                     stats['rows']+=1
                 except Exception as exc:
@@ -231,6 +319,6 @@ def main():
 
 if __name__=='__main__':
     try:main()
-    except (OSError,ValueError,RuntimeError) as exc:
+    except (OSError,ValueError,RuntimeError,subprocess.SubprocessError) as exc:
         print('ERROR:',exc,file=sys.stderr)
         sys.exit(2)
