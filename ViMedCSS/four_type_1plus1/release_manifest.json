@@ -1,0 +1,472 @@
+{
+  "code_commit_sha": "5d4fc3af1caec679a571a4e3450a419b44da2940",
+  "cross_split_exception": {
+    "affected_splits": [
+      "test",
+      "train",
+      "validation"
+    ],
+    "cross_split_leakage_free_claimed": false,
+    "cross_split_uniqueness": "KNOWN_UPSTREAM_EXCEPTION",
+    "duplicate_qa_ids": {
+      "qa_08e63b473329e5119abf": {
+        "segment_id": "Med_CS-1962-4",
+        "splits": [
+          "test",
+          "validation"
+        ],
+        "type_id": "vimedcss_cs_terms_count"
+      },
+      "qa_102fab1528c193a5fedd": {
+        "segment_id": "Med_CS-1962-4",
+        "splits": [
+          "test",
+          "validation"
+        ],
+        "type_id": "vimedcss_topic_classification"
+      },
+      "qa_12123035b16ca9484ab7": {
+        "segment_id": "Med_CS-1962-4",
+        "splits": [
+          "test",
+          "validation"
+        ],
+        "type_id": "vimedcss_cs_terms_identification"
+      },
+      "qa_22b69d71d733db51a11b": {
+        "segment_id": "Med_CS-593-4",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_topic_classification"
+      },
+      "qa_3f8ba4d2b5ea24374361": {
+        "segment_id": "Med_CS-593-4",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_cs_terms_count"
+      },
+      "qa_40ce9868cbb819d8931f": {
+        "segment_id": "Med_CS-1964-16",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_cs_terms_count"
+      },
+      "qa_5416681abdb8858d13ea": {
+        "segment_id": "Med_CS-1964-16",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_topic_classification"
+      },
+      "qa_777eb5d46c4fab595f51": {
+        "segment_id": "Med_CS-1964-15",
+        "splits": [
+          "train",
+          "validation"
+        ],
+        "type_id": "vimedcss_topic_classification"
+      },
+      "qa_833a63ddb4397db90cfb": {
+        "segment_id": "Med_CS-593-4",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_cs_terms_identification"
+      },
+      "qa_af5d04dad33cb1967631": {
+        "segment_id": "Med_CS-1964-15",
+        "splits": [
+          "train",
+          "validation"
+        ],
+        "type_id": "vimedcss_cs_terms_count"
+      },
+      "qa_bf1603089049b9be4e34": {
+        "segment_id": "Med_CS-1964-16",
+        "splits": [
+          "test",
+          "train"
+        ],
+        "type_id": "vimedcss_cs_terms_identification"
+      },
+      "qa_ec5697346fd0249642aa": {
+        "segment_id": "Med_CS-1964-15",
+        "splits": [
+          "train",
+          "validation"
+        ],
+        "type_id": "vimedcss_cs_terms_identification"
+      }
+    },
+    "new_cross_split_overlaps_from_merge": 0,
+    "pairwise_cross_split_overlaps": 0,
+    "provenance": "The four shared segment_ids appear in more than one split of the canonical ViMedCSS source metadata (data_sources/vimedcss/source) and therefore already produce duplicate qa_ids in the canonical V3 release and the standalone task-4 release. Not introduced by 1+1 sampling or by the four-task merge. No QA IDs were altered and no source rows were dropped.",
+    "shared_source_segment_ids": [
+      "Med_CS-1962-4",
+      "Med_CS-1964-15",
+      "Med_CS-1964-16",
+      "Med_CS-593-4"
+    ],
+    "status": "KNOWN_UPSTREAM_EXCEPTION",
+    "structural_audit": "PASS_WITH_DOCUMENTED_EXCEPTION",
+    "total_cross_split_duplicate_ids": 12,
+    "within_split_duplicate_ids": 0
+  },
+  "dataset": "vimedcss",
+  "duplicate_pair_statistics": {
+    "hard": {
+      "distinct_partners": 645,
+      "max_partner_reuse": 52,
+      "per_topic_same_diff": {
+        "Diagnostics": [
+          162,
+          162
+        ],
+        "Medical Sciences": [
+          299,
+          299
+        ],
+        "Nutrition": [
+          13,
+          13
+        ],
+        "Pathology & Pathogens": [
+          127,
+          127
+        ],
+        "Treatments": [
+          57,
+          57
+        ]
+      },
+      "reverse_dups": 0,
+      "selected": 1316,
+      "unique_ordered": 1316,
+      "unique_unordered": 1316
+    },
+    "test": {
+      "distinct_partners": 1599,
+      "max_partner_reuse": 135,
+      "per_topic_same_diff": {
+        "Diagnostics": [
+          88,
+          88
+        ],
+        "Medical Sciences": [
+          705,
+          705
+        ],
+        "Nutrition": [
+          117,
+          117
+        ],
+        "Pathology & Pathogens": [
+          484,
+          484
+        ],
+        "Treatments": [
+          220,
+          220
+        ]
+      },
+      "reverse_dups": 0,
+      "selected": 3228,
+      "unique_ordered": 3228,
+      "unique_unordered": 3228
+    },
+    "train": {
+      "distinct_partners": 11819,
+      "max_partner_reuse": 846,
+      "per_topic_same_diff": {
+        "Diagnostics": [
+          696,
+          696
+        ],
+        "Medical Sciences": [
+          5091,
+          5091
+        ],
+        "Nutrition": [
+          896,
+          896
+        ],
+        "Pathology & Pathogens": [
+          3700,
+          3700
+        ],
+        "Treatments": [
+          1449,
+          1449
+        ]
+      },
+      "reverse_dups": 0,
+      "selected": 23664,
+      "unique_ordered": 23664,
+      "unique_unordered": 23664
+    },
+    "validation": {
+      "distinct_partners": 1700,
+      "max_partner_reuse": 145,
+      "per_topic_same_diff": {
+        "Diagnostics": [
+          85,
+          85
+        ],
+        "Medical Sciences": [
+          741,
+          741
+        ],
+        "Nutrition": [
+          129,
+          129
+        ],
+        "Pathology & Pathogens": [
+          516,
+          516
+        ],
+        "Treatments": [
+          243,
+          243
+        ]
+      },
+      "reverse_dups": 0,
+      "selected": 3428,
+      "unique_ordered": 3428,
+      "unique_unordered": 3428
+    }
+  },
+  "equality_localization": {
+    "false": "Không",
+    "true": "Có"
+  },
+  "generated_at_utc": "2026-10-09T08:31:58.406908+00:00",
+  "llm_calls": 0,
+  "mapping_provenance": {
+    "audio_reference_mode": "source_filename basename (build_final_audio_qa.py compatible)",
+    "identification_audio": "cs_terms_audio_identity_mapping.jsonl (logical_audio_id -> filename)"
+  },
+  "original_release_sha256": {
+    "audio_identity_mapping": {
+      "path": "outputs/releases/vimedcss/cs_terms_audio_identity_mapping.jsonl",
+      "sha256": "6aa27539c5c0aa43bc732406fa94f2581b24eb2126dbded64158051352181a8f"
+    },
+    "cs_terms_identification": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/hard.jsonl",
+        "sha256": "a67172832a2b4c919851dbf51ccb4d9f7b2567d22679f56a4727b6d44152c55b"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/test.jsonl",
+        "sha256": "50cd58f8ebd6d25303a4e859e5a4aa8684af5f90d096c7e9d50bd3fb8d8eba01"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/train.jsonl",
+        "sha256": "7b1b868bde93a5b71eacf7e385b28045dea8e47a36ff2f9a9670cb8009b4e310"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/validation.jsonl",
+        "sha256": "436232892b255678018cf37deeafcf39edb6e1f60769ead890bc370883eb67c8"
+      }
+    },
+    "source_metadata": {
+      "hard": {
+        "path": "data_sources/vimedcss/source/hard.jsonl",
+        "sha256": "9d812fda4c5d98726105f3f538ad852b4004477cf01736809f47379208932ff6"
+      },
+      "test": {
+        "path": "data_sources/vimedcss/source/test.jsonl",
+        "sha256": "fe1df1b4a5f16e52c91b63d6b4da59717c42c94f49630a519a7b06d91609099b"
+      },
+      "train": {
+        "path": "data_sources/vimedcss/source/train.jsonl",
+        "sha256": "02769f94c56636f1109b90d91b8d1d4d83db78159ea3b86d64e255cad5f5836d"
+      },
+      "validation": {
+        "path": "data_sources/vimedcss/source/validation.jsonl",
+        "sha256": "8c61621efa1bc495f8f5d8dd9e67da0033bd1778a01ec4e706aebe647384c7ae"
+      }
+    },
+    "v3_qa_internal": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/hard/qa_internal.jsonl",
+        "sha256": "b77dc2b3605ec602a26483773236970f1d2d884bc8456e501bf3baeeed8b676e"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/test/qa_internal.jsonl",
+        "sha256": "cb41035495e151ca5cc220745aa320a9f4b47c8f4c98d6f264e5acca2edd04f5"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/train/qa_internal.jsonl",
+        "sha256": "0bcd11b89c56663383dc2bc46775eba1c5f56446bb92866368b04dbbdd20be99"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/validation/qa_internal.jsonl",
+        "sha256": "88a02b18498a24b1b05d1d934ed24f9ffad876c1b0c7727059f03a891873e4a1"
+      }
+    },
+    "v3_qa_model_facing": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/hard/qa_model_facing.jsonl",
+        "sha256": "6e7f077fcf2060c3d5c471a87564543ef6ba0713c31217930779f76063f6b28c"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/test/qa_model_facing.jsonl",
+        "sha256": "331189ba4eeb87bfcf8ce0f958528a5cf139457fea56eff08451cd23349a91d3"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/train/qa_model_facing.jsonl",
+        "sha256": "59dcd80536419e3c4f3a6a6349442285b6d31b228b395f4f08ce5ac31cb9335e"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/validation/qa_model_facing.jsonl",
+        "sha256": "9e0f1378628ba9fe046f662a3bb2ae1ff921ae73c8c7a08ef9a2e5b225b5747a"
+      }
+    }
+  },
+  "outputs": {
+    "hard": {
+      "path": "outputs/releases/vimedcss/four_type_1plus1_final/hard.jsonl",
+      "per_task_counts": {
+        "vimedcss_cs_terms_count": 658,
+        "vimedcss_cs_terms_identification": 658,
+        "vimedcss_pairwise_topic_same": 1316,
+        "vimedcss_topic_classification": 658
+      },
+      "sha256": "3796e8b78fa1bc72643d73c9c297e6529cf47260a9e8d0dd73d05b48fe73d0fa"
+    },
+    "test": {
+      "path": "outputs/releases/vimedcss/four_type_1plus1_final/test.jsonl",
+      "per_task_counts": {
+        "vimedcss_cs_terms_count": 1614,
+        "vimedcss_cs_terms_identification": 1614,
+        "vimedcss_pairwise_topic_same": 3228,
+        "vimedcss_topic_classification": 1614
+      },
+      "sha256": "6d96c60511277aad096ec214850165c3c68e8b91a27020baf3275f90b7c4ad60"
+    },
+    "train": {
+      "path": "outputs/releases/vimedcss/four_type_1plus1_final/train.jsonl",
+      "per_task_counts": {
+        "vimedcss_cs_terms_count": 11832,
+        "vimedcss_cs_terms_identification": 11832,
+        "vimedcss_pairwise_topic_same": 23664,
+        "vimedcss_topic_classification": 11832
+      },
+      "sha256": "11a1b309cfd6b9fff26ec388ba49d197291cb34be299bd233ee9a98f0acd2b3c"
+    },
+    "validation": {
+      "path": "outputs/releases/vimedcss/four_type_1plus1_final/validation.jsonl",
+      "per_task_counts": {
+        "vimedcss_cs_terms_count": 1714,
+        "vimedcss_cs_terms_identification": 1714,
+        "vimedcss_pairwise_topic_same": 3428,
+        "vimedcss_topic_classification": 1714
+      },
+      "sha256": "76fd212c1a67a05d5eb6976d28685f20422fe05d8f3169a42de76eebb015b508"
+    }
+  },
+  "pairwise_selection": {
+    "algorithm": "anchors in production SHA-256 'order' rank; one SAME and one DIFFERENT partner per anchor chosen by (partner_reuse, SHA-256 rank, id) from the existing 4+4 candidate QA; anchor always precedes partner (A then B)",
+    "origin": "subset selection over canonical V3 anchor-neighbourhood 4+4 QA",
+    "per_anchor": {
+      "different": 1,
+      "same": 1
+    },
+    "seed": 42
+  },
+  "release": "vimedcss four_type_1plus1_final",
+  "source_releases": {
+    "audio_identity_mapping": {
+      "path": "outputs/releases/vimedcss/cs_terms_audio_identity_mapping.jsonl",
+      "sha256": "6aa27539c5c0aa43bc732406fa94f2581b24eb2126dbded64158051352181a8f"
+    },
+    "cs_terms_identification": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/hard.jsonl",
+        "sha256": "a67172832a2b4c919851dbf51ccb4d9f7b2567d22679f56a4727b6d44152c55b"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/test.jsonl",
+        "sha256": "50cd58f8ebd6d25303a4e859e5a4aa8684af5f90d096c7e9d50bd3fb8d8eba01"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/train.jsonl",
+        "sha256": "7b1b868bde93a5b71eacf7e385b28045dea8e47a36ff2f9a9670cb8009b4e310"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/cs_terms_identification/validation.jsonl",
+        "sha256": "436232892b255678018cf37deeafcf39edb6e1f60769ead890bc370883eb67c8"
+      }
+    },
+    "source_metadata": {
+      "hard": {
+        "path": "data_sources/vimedcss/source/hard.jsonl",
+        "sha256": "9d812fda4c5d98726105f3f538ad852b4004477cf01736809f47379208932ff6"
+      },
+      "test": {
+        "path": "data_sources/vimedcss/source/test.jsonl",
+        "sha256": "fe1df1b4a5f16e52c91b63d6b4da59717c42c94f49630a519a7b06d91609099b"
+      },
+      "train": {
+        "path": "data_sources/vimedcss/source/train.jsonl",
+        "sha256": "02769f94c56636f1109b90d91b8d1d4d83db78159ea3b86d64e255cad5f5836d"
+      },
+      "validation": {
+        "path": "data_sources/vimedcss/source/validation.jsonl",
+        "sha256": "8c61621efa1bc495f8f5d8dd9e67da0033bd1778a01ec4e706aebe647384c7ae"
+      }
+    },
+    "v3_qa_internal": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/hard/qa_internal.jsonl",
+        "sha256": "b77dc2b3605ec602a26483773236970f1d2d884bc8456e501bf3baeeed8b676e"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/test/qa_internal.jsonl",
+        "sha256": "cb41035495e151ca5cc220745aa320a9f4b47c8f4c98d6f264e5acca2edd04f5"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/train/qa_internal.jsonl",
+        "sha256": "0bcd11b89c56663383dc2bc46775eba1c5f56446bb92866368b04dbbdd20be99"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/validation/qa_internal.jsonl",
+        "sha256": "88a02b18498a24b1b05d1d934ed24f9ffad876c1b0c7727059f03a891873e4a1"
+      }
+    },
+    "v3_qa_model_facing": {
+      "hard": {
+        "path": "outputs/releases/vimedcss/hard/qa_model_facing.jsonl",
+        "sha256": "6e7f077fcf2060c3d5c471a87564543ef6ba0713c31217930779f76063f6b28c"
+      },
+      "test": {
+        "path": "outputs/releases/vimedcss/test/qa_model_facing.jsonl",
+        "sha256": "331189ba4eeb87bfcf8ce0f958528a5cf139457fea56eff08451cd23349a91d3"
+      },
+      "train": {
+        "path": "outputs/releases/vimedcss/train/qa_model_facing.jsonl",
+        "sha256": "59dcd80536419e3c4f3a6a6349442285b6d31b228b395f4f08ce5ac31cb9335e"
+      },
+      "validation": {
+        "path": "outputs/releases/vimedcss/validation/qa_model_facing.jsonl",
+        "sha256": "9e0f1378628ba9fe046f662a3bb2ae1ff921ae73c8c7a08ef9a2e5b225b5747a"
+      }
+    }
+  },
+  "source_revision": "b6959a18a08739464733930a872e7125c03e6558",
+  "topic_localization": {
+    "Diagnostics": "Chẩn đoán",
+    "Medical Sciences": "Y học và khoa học sức khỏe",
+    "Nutrition": "Dinh dưỡng",
+    "Pathology & Pathogens": "Bệnh lý và tác nhân gây bệnh",
+    "Treatments": "Điều trị"
+  }
+}
