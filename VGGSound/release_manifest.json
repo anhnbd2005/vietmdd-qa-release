@@ -1,0 +1,30 @@
+{
+  "dataset": "vggsound",
+  "schema": [
+    "id",
+    "question",
+    "type_id",
+    "operator",
+    "audio_input",
+    "duration",
+    "text_output"
+  ],
+  "splits": {
+    "test": {
+      "distinct_labels": 309,
+      "input_qa_sha256": "cfe1443def3f1101b0d59029eec08f3977ac28bae4600c8fe456a7901648bbf4",
+      "input_source_sha256": "d5be986bf0d5661961a79e6ac2498bcd1c242925006d16d0b09950c8f2b2eb98",
+      "output_sha256": "ddc08fad7a40b6dbf0029723278ec01ab9a79e4df94fd2473d10928fa4fb8b28",
+      "qa_count": 15341
+    },
+    "train": {
+      "distinct_labels": 309,
+      "input_qa_sha256": "a6713cdd25379b07fd4fc7c260f617b7c087672d77b0ff9d7c0172162422a38b",
+      "input_source_sha256": "ee2509fb5794a3568a382a9d45044abdd7c7715680efdec99df359da3e1687d8",
+      "output_sha256": "bf74ad547f35fe77623fc4e4e0f1677657506b8954aff2f41b61574a2af32b73",
+      "qa_count": 182615
+    }
+  },
+  "task": "vggsound_event_classification",
+  "total_qa": 197956
+}
